@@ -3,12 +3,15 @@ use strict;
 use Getopt::Std;
 
 my $usage = <<END;
-Usage: perl sing.pl [opts] [melody-file-in-abc-notation] [lyrics-file]
-  -l 'lyrics'  lyrics to sing (in lieu of lyrics file)
-  -m 'melody'  melody in abc notation (in lieu of melody file)
+Usage: perl sing.pl [opts] [melody] [lyrics...]
+  (melody in abc notation, enclosed in quotes if necessary)
+
+  -l file      read lyrics from file
+  -m melody    read melody from file
   -n number    shift pitch by half-steps
   -o number    shift pitch by octaves
-  -w name      specify voice to sing with
+  -t number    multiply tempo by number
+  -v name      specify voice to sing with
 END
 
 # performs applescript
@@ -131,7 +134,7 @@ sub set_syllable($@) {
 
 
 my %opts;
-getopt('mlnov', \%opts);
+getopt('mlnotv', \%opts);
 
 if ($opts{'h'}) {
   print "\n$usage\n";
@@ -140,19 +143,12 @@ if ($opts{'h'}) {
 
 my $pitch_shift = $opts{'o'} * 12 + $opts{'n'};
 my $voice = $opts{'v'};
-my $lyrics = $opts{'l'};
-my $melody = $opts{'m'};
+my $lyrics_file = $opts{'l'};
+my $melody_file = $opts{'m'};
+my $tempo_factor = $opts{'t'};
 
-if (!$melody) {
-  my $melody_file = shift @ARGV;
-  $melody = slurp($melody_file);
-}
-if (!$lyrics) {
-  my $lyrics_file = shift @ARGV;
-  $lyrics = slurp($lyrics_file);
-}
-
-
+my $melody = $melody_file ? slurp($melody_file) : shift @ARGV;
+my $lyrics = $lyrics_file ? slurp($lyrics_file) : join " ", @ARGV;
 
 my $pad_syllable = "_UW";
 
@@ -197,6 +193,17 @@ if ($factor != 1) {
   }
 }
 
+# apply tempo factor
+print "tempo factor: $tempo_factor\n";
+$tempo_factor = 0 + $tempo_factor;
+if ($tempo_factor && 1 != $tempo_factor) {
+  for my $setting (@settings) {
+    for my $note(@$setting) {
+      $note->{'length'} /= $tempo_factor;
+    }
+  }
+}
+
 #print join "\n", map { join "; ", map { 'P ' . $_->{pitch} . ' D' . $_->{length} } @{$_} } @settings;
 #print "\n";
 
@@ -237,5 +244,6 @@ push @song, "[[inpt TEXT]]";
 # say it
 my $song = join " ", @song;
 my $using = $voice ? qq(using "$voice") : '';
+#print qq(say "$song" $using);
 osascript qq(say "$song" $using);
 
