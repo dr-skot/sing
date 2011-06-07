@@ -5258,7 +5258,3 @@ testHeightForPitch();
  pd = "493.883 300 TIE 329.627 300 TIE 415.304 300 554.365 300";
  testAbc2pd(abc, pd);
 
- // repeat
- abc = "|[1 GCE:|[3 A";
- pd = "493.883 300 TIE 329.627 300 TIE 415.304 300 554.365 300";
- testAbc2pd(abc, pd);

@@ -119,6 +119,7 @@ sub set_syllable($@) {
 	my $length = $_->{'length'};
 	push @pitches, "$pitch:$start";
 	$start += ($length/$vowel_length) * 100;
+	push @pitches, "$pitch:" . ($start - 1);
       }
       push @pitches, "$pitch:100";
       push @song, "$_ {D $vowel_length; P " . (join " ", @pitches) . "}";
@@ -165,7 +166,7 @@ my @tune = split / /, $tune;
 
 # sanity check
 my @numbers = grep !m/^TIE$/, @tune;
-assert(@numbers % 2 == 0);
+assert(@numbers % 2 == 0, "must be an even number of numbers");
 assert(0 == (grep m/[^0-9.-]/, @numbers));
 
 # read this data into a useful structure
@@ -196,7 +197,7 @@ if ($factor != 1) {
 }
 
 # apply tempo factor
-print "tempo factor: $tempo_factor\n";
+#print "tempo factor: $tempo_factor\n";
 $tempo_factor = 0 + $tempo_factor;
 if ($tempo_factor && 1 != $tempo_factor) {
   for my $setting (@settings) {
