@@ -1,0 +1,10 @@
+ver 0.1.2
+- supports real slur notation, with parentheses
+- supports tuplets (triplets etc)
+
+ver 0.1.1
+- tempo control added
+- usage changed: -l and -m opts are for files, not literals
+
+ver 0.1
+first version
