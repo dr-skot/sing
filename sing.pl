@@ -3,15 +3,17 @@ use strict;
 use Getopt::Std;
 
 my $usage = <<END;
+
 Usage: perl sing.pl [opts] [melody] [lyrics...]
   (melody in abc notation, enclosed in quotes if necessary)
 
   -l file      read lyrics from file
-  -m melody    read melody from file
+  -m file    read melody from file
   -n number    shift pitch by half-steps
   -o number    shift pitch by octaves
   -t number    multiply tempo by number
   -v name      specify voice to sing with
+
 END
 
 # performs applescript
@@ -137,7 +139,7 @@ my %opts;
 getopt('mlnotv', \%opts);
 
 if ($opts{'h'}) {
-  print "\n$usage\n";
+  print $usage;
   exit;
 }
 

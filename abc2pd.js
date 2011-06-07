@@ -5107,59 +5107,92 @@ var tools = {
   round : function(num) {
       return Math.floor(num * 1000)/1000;
     },
-  };
+  isCompound : function(meter) {
+    return (meter && meter.num && meter.num % 3 == 0);
+  },
+  printTune : function(abc) {
+    var parser = new AbcParse();
+    parser.parse(abc);
+    var tune = parser.getTune();
+    print(JSON.stringify(tune));
+  },
+};
+
+ function abc2pd(abc) {
+   var parser = new AbcParse();
+   parser.parse(abc);
+   var tune = parser.getTune();
+   //print(JSON.stringify(tune));
+   var key = tune.lines[0].staff[0].key;
+   var meter = tune.lines[0].staff[0].meter;
+   var tempo = tune.metaText.tempo || { bpm:100, duration:[0.25] };
+   var elements = tune.lines[0].staff[0].voices[0];
+   var results = [];
+   var tying = 0;
+   var slurDepth = 0;
+   var tupletRatio = 1;
+   tune.lines.each(function(line) {
+       meter = line.staff[0].meter || meter;
+       key = line.staff[0].key || key
+         line.staff[0].voices[0].each(function(elem) {
+             //console.log(elem);
+             if (elem.el_type == "key") key = elem;
+             if (elem.el_type == "meter") meter = elem;
+             if (elem.el_type == "note") {
+               var ms = tools.millisecondsForNote(elem, tempo);
+               var freq;
+               var symbol;
+               
+               // adjust length for tuplets
+               if (elem.startTriplet) {
+                 //print('startTriplet: ' + elem.startTriplet);
+                 var n = tools.isCompound(meter) ? 2 : 3;
+                 tupletRatio = [1, 1, 3/2, 2/3, 3/4, n/5, 2/6, n/7, 3/8, n/9][elem.startTriplet];
+                 // (tuplet interpretation according to http://www.lesession.co.uk/abc/abc_notation_part2.htm#ets)
+               }
+               ms *= tupletRatio;
+               if (elem.endTriplet) {
+                 //print('endTriplet');
+                 tupletRatio = 1;
+               }
+               
+               if (elem.rest) {
+                 freq = 0;
+                 symbol = '%';
+               } else {
+                 freq = tools.frequencyForNote(elem.pitches[0], key);
+                 var letter = tools.letterForPitch(elem.pitches[0].pitch);
+                 var acc = tools.accidentalForNote(elem.pitches[0], key);
+                 var accSymbol = tools.symbolForAcc(acc);
+                 symbol = letter + accSymbol;
+                 if (elem.pitches[0].endTie) tying = false;
+                 if (elem.pitches[0].startTie) tying = true;
+                 if (elem.pitches[0].endSlur) slurDepth -= 1;
+                 if (elem.pitches[0].startSlur) slurDepth += 1;
+               }
+               results.push(tools.round(freq), tools.round(ms));
+               if (tying || slurDepth > 0) results.push("TIE");
+             }
+           });
+     });
+   if (results[results.length-1] == "TIE") results.pop();
+   return results.join(" ");
+ }
+
+var abc = arguments[0];
+print(abc2pd(abc));
 
 
-$abc = arguments[0];
-/*
-$abc = "% Generated more or less automatically by swtoabc by Erich Rickheit KSC\n" +
-"X:1\n" +
-"T:Little Sir Hugh\n" +
-"M:6/8\n" +
-"L:1/8\n" +
-"Q:90\n" +
-"K:G\n" +
-"z/2-^c/2|d-f dB-A B| GGD D2B/2-c/2|d-e dB-A G| A3- A2 A|d-e dB-A B|\\\n" +
-" G2 D D2 D|G-A Bc-B A| G3- G2||\n";
-*/
-var parser = new AbcParse();
-parser.parse($abc);
-var tune = parser.getTune();
-var key = tune.lines[0].staff[0].key;
- var tempo = tune.metaText.tempo || { bpm:100, duration:[0.25] };
-var elements = tune.lines[0].staff[0].voices[0];
-var results = [];
-var tying = 0;
-elements.each(function(elem) {
-    //console.log(elem);
-  if (elem.el_type == "note") {
-    var ms = tools.millisecondsForNote(elem, tempo);
-    var freq;
-    var symbol;
-    if (elem.rest) {
-      freq = 0;
-      symbol = '%';
-    } else {
-      freq = tools.frequencyForNote(elem.pitches[0], key);
-      var letter = tools.letterForPitch(elem.pitches[0].pitch);
-      var acc = tools.accidentalForNote(elem.pitches[0], key);
-      var accSymbol = tools.symbolForAcc(acc);
-      symbol = letter + accSymbol;
-      if (elem.pitches[0].startTie) tying = true;
-      if (elem.pitches[0].endTie) tying = false;
-    }
-    results.push(tools.round(freq), tools.round(ms));
-    if (tying) results.push("TIE");
-  }
-});
-print(results.join(" "));
-
-
-// TODO: move this to a separte file
+// TODO: move this to a separate file
 // ASSERT
 function AssertException(message) { this.message = message; }
 AssertException.prototype.toString = function () { return 'AssertException: ' + this.message; }
-function assert(exp, message) { if (!exp) throw new AssertException(message); }
+ function assert(exp, message) { 
+   if (!exp) {
+     print(message);
+     throw new AssertException(message); 
+   }
+ }
 
 // TODO: move tests to a separate file
 function testHeightForPitch() 
@@ -5178,3 +5211,54 @@ function testHeightForPitch()
 }
 testHeightForPitch();
 
+ function testAbc2pd(abc, pd)
+ {
+   var actual = abc2pd(abc);
+   if (actual != pd) tools.printTune(abc);
+   assert(abc2pd(abc) == pd, "For abc:\n" + abc + "\n  expected " + pd + "\n  got " + abc2pd(abc));
+ }
+
+ // basic
+ var abc = "CGEA";
+ var pd = "329.627 300 493.883 300 415.304 300 554.365 300";
+ testAbc2pd(abc, pd);
+
+ // longer last note
+ var abc = "CGEA2";
+ var pd = "329.627 300 493.883 300 415.304 300 554.365 600";
+ testAbc2pd(abc, pd);
+
+ // '<' notation
+ var abc = "CGE<A";
+ var pd = "329.627 300 493.883 300 415.304 150 554.365 450";
+ testAbc2pd(abc, pd);
+
+ // with a rest
+ var abc = "CGEzA";
+ var pd = "329.627 300 493.883 300 415.304 300 0 300 554.365 300";
+ testAbc2pd(abc, pd);
+
+ // tempo
+ abc = "Q:1/8=1\nCGEA2";
+ pd = "329.627 60000 493.883 60000 415.304 60000 554.365 120000";
+ testAbc2pd(abc, pd);
+
+ // tuplet
+ abc = "(3CGE A";
+ pd = "329.627 200 493.883 200 415.304 200 554.365 300";
+ testAbc2pd(abc, pd);
+
+ // slur (tie notation)
+ abc = "G-C-E A2";
+ pd = "493.883 300 TIE 329.627 300 TIE 415.304 300 554.365 600";
+ testAbc2pd(abc, pd);
+
+ // slur (slur notation)
+ abc = "(GCE)A";
+ pd = "493.883 300 TIE 329.627 300 TIE 415.304 300 554.365 300";
+ testAbc2pd(abc, pd);
+
+ // repeat
+ abc = "|[1 GCE:|[3 A";
+ pd = "493.883 300 TIE 329.627 300 TIE 415.304 300 554.365 300";
+ testAbc2pd(abc, pd);
