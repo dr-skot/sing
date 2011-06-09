@@ -135,6 +135,9 @@ sub set_syllable($@) {
 # main routine
 #
 
+(my $dir = $0) =~ s|[^/]+$||;
+$dir = './' unless $dir;
+#print "$dir\n";
 
 my %opts;
 getopt('mlnotv', \%opts);
@@ -159,7 +162,7 @@ my $pad_syllable = "_UW";
 # using the javascript module
 my $jsc = '/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Resources/jsc';
 $melody =~ s/'/\\'/g;
-my $tune = `$jsc abc2pd.js -- '$melody'`;
+my $tune = `$jsc ${dir}abc2pd.js -- '$melody'`;
 #print $tune;
 $tune =~ s/\n//;
 my @tune = split / /, $tune;
@@ -216,7 +219,7 @@ $lyrics =~ s/'/\\'/g; # make it safe for quoting
 $voice =~ s/"/\\"/g; # make it safe for quoting
 if ($lyrics) {
   my $opts = $voice ? qq(-v "$voice") : '';
-  (my $phonemes = `./phonemes $opts '$lyrics'`) =~ s/\n|\.//g;
+  (my $phonemes = `${dir}phonemes $opts '$lyrics'`) =~ s/\n|\.//g;
   @syllables = split_syllables $phonemes;
   #print "phonemes: $phonemes\n";
   #print join "\n", @syllables;
